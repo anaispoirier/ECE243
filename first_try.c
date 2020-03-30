@@ -2,18 +2,19 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define LAUNCH_ID 176
+#define LAUNCH_ROW 11
+#define LAUNCH_COL 12
 
 void plot_pixel(int x, int y, short int line_color);
 void clear_screen();
-void initialize_bubbles();
+void initialize_game_board();
 void draw_bubble(int xc, int yc, int r, int colour, bool pop);
-void erase_bubble(int bubbleIndex);
-void pop_bubble(int bubbleIndex);
+void erase_bubble(int row, int col);
+void pop_bubble(int row, int col);
 void update_game_board();
 void reset_launch_bubble();
 void reset_visited();
-void check_pop(int bubble_ID);
+void check_pop(int row, int col);
 void draw_bubble_boundary(int xc, int yc, int x, int y, int colour);
 void draw_line(int x0, int y0, int x1, int y1, short int line_color);
 void swap(int* number1, int* number2);
@@ -26,20 +27,25 @@ volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 volatile int* pixel_status_ptr = (int *)0xFF20302C;
 volatile int *hex3_0_ptr = (int *)0xFF200020;
 
+typedef struct Pair {
+	int row;
+	int col;
+} Pair;
+
 typedef struct Bubble { 
    int xc;
    int yc;
    int radius;
    int colour;
    bool visible;
-   int up;
-   int down;
-   int right;
-   int left;
+   Pair up;
+   Pair down;
+   Pair right;
+   Pair left;
 } Bubble;
 
-Bubble bubbles[177];
-bool visited[176];;
+Bubble game_board[12][16];
+bool visited[11][16];
 int bubble_colour[3] = {0xC8A4FF, 0xF81F, 0xFF876D};
 int entered_recursive;
 
@@ -51,7 +57,7 @@ int main(void)
 		
 	clear_screen();
 	
-	initialize_bubbles();
+	initialize_game_board();
 	
 	bool game_over = false;
 	
@@ -61,24 +67,27 @@ int main(void)
 		
 		reset_visited();
 		
-		draw_bubble(bubbles[LAUNCH_ID].xc, bubbles[LAUNCH_ID].yc, bubbles[LAUNCH_ID].radius, bubbles[LAUNCH_ID].colour, false);
+		draw_bubble(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc, game_board[LAUNCH_ROW][LAUNCH_COL].radius, game_board[LAUNCH_ROW][LAUNCH_COL].colour, false);
 		
 		int y = 230;
 		bool keep_going = true;
 		
 		while(keep_going){
-			for(int i = 0; i < 176; i++)
-				if(bubbles[LAUNCH_ID].xc == bubbles[i].xc 
-				&& bubbles[i].yc >= (bubbles[LAUNCH_ID].yc - 25)
-				&& bubbles[i].yc <= (bubbles[LAUNCH_ID].yc + 25)
-				&& bubbles[i].colour != 0x0)
-					keep_going = false;
+			for(int j = 0; j < 16; j++){
+				for(int i = 0; i < 11; i++){
+					if(game_board[LAUNCH_ROW][LAUNCH_COL].xc == game_board[i][j].xc 
+					&& game_board[i][j].yc >= (game_board[LAUNCH_ROW][LAUNCH_COL].yc - 25)
+					&& game_board[i][j].yc <= (game_board[LAUNCH_ROW][LAUNCH_COL].yc + 25)
+					&& game_board[i][j].colour != 0x0)
+						keep_going = false;
+				}
+			}
 
 			wait_loop();
-			erase_bubble(LAUNCH_ID);
-			bubbles[LAUNCH_ID].yc -= 3;
+			erase_bubble(LAUNCH_ROW, LAUNCH_COL);
+			game_board[LAUNCH_ROW][LAUNCH_COL].yc -= 3;
 			y -= 3;
-			draw_bubble(169, y, 10, bubbles[LAUNCH_ID].colour, false);
+			draw_bubble(169, y, 10, game_board[LAUNCH_ROW][LAUNCH_COL].colour, false);
 
 		
 		}
@@ -91,52 +100,72 @@ int main(void)
 	return 0;
 }
 
-void initialize_bubbles(){
+void initialize_game_board(){
 	
 	int xCount = 0;
 	int yCount = 0;
 	
-	for(int i = 0; i < LAUNCH_ID; i++){
-
+	for(int i = 0; i < 11; i++){
+		for(int j = 0; j < 16; j++){
+			
 		
-		if( i != 0 && i % 16 == 0){
-			xCount += 16;
-			yCount += 1;
+			game_board[i][j].xc = 20 * j + 9;
+			game_board[i][j].yc = 10 + (20 * i);
+			game_board[i][j].colour = bubble_colour[rand() % 3];
+			game_board[i][j].radius = 10;
+			game_board[i][j].visible = true;
+			
+			if(i == 0){
+				game_board[i][j].up.row = -1;
+				game_board[i][j].up.col = -1;
+			}
+			else{
+				game_board[i][j].up.row = i - 1;
+				game_board[i][j].up.col = j;
+				
+			}
+				
+			if(i == 10){
+				game_board[i][j].down.row = -1;
+				game_board[i][j].down.col = -1;
+			}
+			else{
+				game_board[i][j].down.row = i + 1;
+				game_board[i][j].down.col = j;
+			}
+			
+			if(j == 0){
+				game_board[i][j].left.row = -1;
+				game_board[i][j].left.col = -1;
+			}
+			else{
+				game_board[i][j].left.row = i;
+				game_board[i][j].left.col = j -1;
+			}
+				
+			if(j == 15){
+				game_board[i][j].right.row = -1;
+				game_board[i][j].right.col = -1;
+			}
+			else{
+				game_board[i][j].right.row = i;
+				game_board[i][j].right.col = j + 1;
+			}
+			
+			if(i > 2){
+				game_board[i][j].colour = 0x0;
+				game_board[i][j].visible = false;
+			}
+			
+			draw_bubble(game_board[i][j].xc, game_board[i][j].yc, game_board[i][j].radius, game_board[i][j].colour, false);
+			
+			if(j == 15){
+				xCount += 16;
+				yCount += 1;
+			}
+		
 		}
 		
-		bubbles[i].xc = 20 * (i - xCount) + 9;
-		bubbles[i].yc = 10 + (20 * yCount);
-		bubbles[i].colour = bubble_colour[rand() % 3];
-		bubbles[i].radius = 10;
-		bubbles[i].visible = true;
-		
-		if(i < 16)
-			bubbles[i].up = -1;
-		else
-			bubbles[i].up = i - 16;
-			
-		if(i > 175)
-			bubbles[i].down = -1;
-		else
-			bubbles[i].down = i + 16;
-		
-		if(i != 0 && i % 15 == 0)
-			bubbles[i].right = -1;
-		else
-			bubbles[i].right = i + 1;
-			
-		if(i == 0 || i % 16 == 0)
-			bubbles[i].left = -1;
-		else
-			bubbles[i].left = i - 1;
-		
-		if(i > 47){
-			bubbles[i].colour = 0x0;
-			bubbles[i].visible = false;
-		}
-		
-		draw_bubble(bubbles[i].xc, bubbles[i].yc, bubbles[i].radius, bubbles[i].colour, false);
-	
 	}
 	
 }
@@ -187,7 +216,6 @@ void draw_line(int x0, int y0, int x1, int y1, short int line_color){
 	int x, y, deltax, deltay, error, y_step;
 	bool isSteep = abs(y1 - y0) > abs(x1 - x0);
 	
-	//if steep, swap x0,y0 and x1,y1
 	if(isSteep){
 		swap(&x0,&y0);
         swap(&x1,&y1);
@@ -220,45 +248,48 @@ void draw_line(int x0, int y0, int x1, int y1, short int line_color){
 }
 
 
-void erase_bubble(int bubbleIndex){
-	bubbles[bubbleIndex].visible = false;
-	if(bubbleIndex != LAUNCH_ID)
-		bubbles[bubbleIndex].colour = 0x0;
-	draw_bubble(bubbles[bubbleIndex].xc, bubbles[bubbleIndex].yc, bubbles[bubbleIndex].radius, 0x0, false);
+void erase_bubble(int row, int col){
+	game_board[row][col].visible = false;
+	if(row != LAUNCH_ROW && col != LAUNCH_COL)
+		game_board[row][col].colour = 0x0;
+	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, game_board[row][col].radius, 0x0, false);
 }
 
-void pop_bubble(int bubbleIndex){
-	bubbles[bubbleIndex].visible = false;
-	bubbles[bubbleIndex].colour = 0x0;
-	draw_bubble(bubbles[bubbleIndex].xc, bubbles[bubbleIndex].yc, bubbles[bubbleIndex].radius, 0x0, true);
+void pop_bubble(int row, int col){
+	game_board[row][col].visible = false;
+	game_board[row][col].colour = 0x0;
+	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, game_board[row][col].radius, 0x0, true);
 }
 
 void reset_launch_bubble(){
 	
-	bubbles[LAUNCH_ID].xc = 169;
-	bubbles[LAUNCH_ID].yc = 230;
-	bubbles[LAUNCH_ID].radius = 10;
-	bubbles[LAUNCH_ID].colour = bubble_colour[rand() % 3];
-	bubbles[LAUNCH_ID].visible = true;
+	game_board[LAUNCH_ROW][LAUNCH_COL].xc = 169;
+	game_board[LAUNCH_ROW][LAUNCH_COL].yc = 230;
+	game_board[LAUNCH_ROW][LAUNCH_COL].radius = 10;
+	game_board[LAUNCH_ROW][LAUNCH_COL].colour = bubble_colour[rand() % 3];
+	game_board[LAUNCH_ROW][LAUNCH_COL].visible = true;
 }
 
 void reset_visited(){
 	
-	for(int i = 0; i < 176; i ++)
-		visited[i] = false;
+	for(int i = 0; i < 11; i++)
+		for(int j = 0; j < 16; j++)
+			visited[i][j] = false;
 		
 	entered_recursive = 0;
 }
 
 void update_game_board(){
-	for(int i = 0; i < 176; i++){
-		if(bubbles[LAUNCH_ID].xc == bubbles[i].xc 
-		&& bubbles[LAUNCH_ID].yc >= bubbles[i].yc - 2
-		&& bubbles[LAUNCH_ID].yc <= bubbles[i].yc + 2){
-			bubbles[i].colour = bubbles[LAUNCH_ID].colour;
-			erase_bubble(LAUNCH_ID);
-			draw_bubble(bubbles[i].xc, bubbles[i].yc, 10, bubbles[i].colour, false);
-			check_pop(i);
+	for(int i = 0; i < 11; i++){
+		for(int j = 0; j < 16; j++){	
+			if(game_board[LAUNCH_ROW][LAUNCH_COL].xc == game_board[i][j].xc 
+				&& game_board[LAUNCH_ROW][LAUNCH_COL].yc >= game_board[i][j].yc - 2
+				&& game_board[LAUNCH_ROW][LAUNCH_COL].yc <= game_board[i][j].yc + 2){
+					game_board[i][j].colour = game_board[LAUNCH_ROW][LAUNCH_COL].colour;
+					erase_bubble(LAUNCH_ROW, LAUNCH_COL);
+					draw_bubble(game_board[i][j].xc, game_board[i][j].yc, 10, game_board[i][j].colour, false);
+					check_pop(i, j);
+			}
 		}
 	}
 }
@@ -266,37 +297,36 @@ void update_game_board(){
 
 bool check_game_over(){
 	
-	for(int i = 169; i < 176; i++)
-		if(bubbles[i].colour != 0x0)
+	for(int j = 0; j < 16; j++)
+		if(game_board[10][j].colour != 0x0)
 			return true;
 			
-	else
-		return false;
+	return false;
 }
 
-void check_pop(int bubble_ID){
+void check_pop(int row, int col){
 	
 	entered_recursive++;
 	
-	visited[bubble_ID] = true;
+	visited[row][col] = true;
 	bool entered_at_least_once = false;
 	
-	if(bubbles[bubble_ID].colour == bubbles[bubbles[bubble_ID].up].colour){
+	if(game_board[row][col].colour == game_board[game_board[row][col].up.row][game_board[row][col].up.col].colour){
 		entered_at_least_once = true;
-		check_pop(bubbles[bubble_ID].up);
+		check_pop(game_board[row][col].up.row, game_board[row][col].up.col);
 	}
-	if(bubbles[bubble_ID].colour == bubbles[bubbles[bubble_ID].right].colour){
+	if(game_board[row][col].colour == game_board[game_board[row][col].right.row][game_board[row][col].right.col].colour){
 		entered_at_least_once = true;
-		check_pop(bubbles[bubble_ID].right);
+		check_pop(game_board[row][col].right.row, game_board[row][col].right.col);
 	}
-	if(bubbles[bubble_ID].colour == bubbles[bubbles[bubble_ID].left].colour
-	&& visited[bubbles[bubble_ID].left] == false){
+	if(game_board[row][col].colour == game_board[game_board[row][col].left.row][game_board[row][col].left.col].colour
+	&& visited[game_board[row][col].left.row][game_board[row][col].left.col] == false){
 		entered_at_least_once = true;
-		check_pop(bubbles[bubble_ID].left);
+		check_pop(game_board[row][col].left.row, game_board[row][col].left.col);
 	}
 
 	if(entered_recursive > 2)	
-		erase_bubble(bubble_ID);
+		erase_bubble(row, col);
 	
 }
 
