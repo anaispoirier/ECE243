@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define LAUNCH_ROW 11
 #define LAUNCH_COL 12
@@ -23,6 +24,11 @@ void check_pop(int row, int col);
 void update_game_board();
 void shift_game_board();
 bool check_game_over();
+/////////////////////////////////////////////
+
+///////////COUNT DOWN FUNCTIONS ////////////
+bool count_down();
+void display_hex(int i);
 /////////////////////////////////////////////
 
 ///////////////HELPER FUNCTIONS//////////////
@@ -74,7 +80,10 @@ int main(void)
 	initialize_game_board();
 	
 	bool game_over = false;
-	
+
+	//counting down on HEX
+	bool dropDown = count_down();
+
 	while(!game_over){
 		
 		reset_launch_bubble();
@@ -105,6 +114,7 @@ int main(void)
 
 		
 		}
+		
 		update_game_board();
 		game_over = check_game_over();
 		if(entered_recursive < 2)
@@ -187,7 +197,6 @@ void initialize_game_board(){
 	}
 	
 }
-
 
 void reset_launch_bubble(){
 	
@@ -403,7 +412,44 @@ void clear_screen(){
 
 //////////////////////////////////END OF HELPER FUNCTIONS/////////////////////////////////
 
-void display_hex(){
-	//char zero = 0b00111111, one = 0b00000110, two = 0b01011011, three = 0b01001111, four = 0b01100110;
-	//char five = 0b01101101, six = 0b01111101, seven = 0b00000111, eight = 0b01111111, nine = 0b01100111;
+//////////////////////////////////COUNTER FUNCTION //////////////////////////////////////
+
+bool count_down(){
+
+	//counts down from 10
+	int displayNum = 10;
+	//approxumately 1 sec if we count down with this number
+	int ticksPerSecond = 1000000;
+
+	while(1){
+		//exit once counted to 0
+		if( displayNum < 0){
+			return true;
+		}else{
+			display_hex(displayNum);
+			//loop that makes sure the hex changes every second
+			while(ticksPerSecond >= 0){
+				ticksPerSecond--;
+			}
+			displayNum --;
+			ticksPerSecond = 1000000;
+		}
+	}
+	return false;
 }
+
+//display number on hex
+void display_hex(int i){
+
+	//seg 7 code from 0 to 9
+	//one char is one byte
+	char seg7[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x67};
+
+	if(i >= 10){
+		*(hex3_0_ptr) = (seg7[i/10]<<8 | seg7[i%10]);
+	}else{
+		*hex3_0_ptr = seg7[i];
+	}
+}
+
+/////////////////////////////////END OF COUNTER FUCNTION///////////////////////////////
