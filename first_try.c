@@ -107,6 +107,8 @@ int main(void)
 		}
 		update_game_board();
 		game_over = check_game_over();
+		if(entered_recursive < 2)
+			shift_game_board();
 		//reset_launch_bubble();
 		
 	}
@@ -302,6 +304,27 @@ void update_game_board(){
 }
 
 void shift_game_board(){
+	
+	Bubble copy_of_game_board[12][16];
+	
+	for(int j = 0; j < 16; j++)
+		copy_of_game_board[0][j].colour = bubble_colour[rand() % 3];
+		
+	for(int i = 1; i < 11; i++)
+		for(int j = 0; j < 16; j++)
+			copy_of_game_board[i][j].colour = game_board[i-1][j].colour;
+			
+	for(int i = 0; i < 11; i++)
+		for(int j = 0; j < 16; j++)
+			game_board[i][j].colour = copy_of_game_board[i][j].colour;
+			
+	//update_game_board();
+	//clear_screen();
+	
+	for(int i = 0; i < 11; i++)
+		for(int j = 0; j < 16; j++)
+			draw_bubble(game_board[i][j].xc, game_board[i][j].yc, 10, game_board[i][j].colour, false);
+	
 	
 }
 
