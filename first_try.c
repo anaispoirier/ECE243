@@ -6,6 +6,24 @@
 #define LAUNCH_ROW 11
 #define LAUNCH_COL 12
 
+typedef struct Pair {
+	int row;
+	int col;
+} Pair;
+
+typedef struct Bubble { 
+   int xc;
+   int yc;
+   int radius;
+   int colour;
+   bool visible;
+   Pair up;
+   Pair down;
+   Pair right;
+   Pair left;
+} Bubble;
+
+
 ////////////INITIALIZER FUNCTIONS////////////
 void initialize_game_board();
 void reset_launch_bubble();
@@ -17,14 +35,16 @@ void initialize_angle_array();
 void draw_bubble(int xc, int yc, int r, int colour, bool pop);
 void draw_bubble_boundary(int xc, int yc, int x, int y, int colour);
 void erase_bubble(int row, int col);
+void erase_launch(int xc, int yc);
 void pop_bubble(int row, int col);
 void check_pop(int row, int col);
 /////////////////////////////////////////////
 
 ////////////UPDATE GAME FUNCTIONS////////////
-void update_game_board();
+void update_game_board(int row, int col);
 void shift_game_board();
 bool check_game_over();
+Pair find_position_to_fill(int xc, int yc);
 /////////////////////////////////////////////
 
 ///////////COUNT DOWN FUNCTIONS ////////////
@@ -50,23 +70,6 @@ void plot_pixel(int x, int y, short int line_color);
 void clear_screen();
 /////////////////////////////////////////////
 
-
-typedef struct Pair {
-	int row;
-	int col;
-} Pair;
-
-typedef struct Bubble { 
-   int xc;
-   int yc;
-   int radius;
-   int colour;
-   bool visible;
-   Pair up;
-   Pair down;
-   Pair right;
-   Pair left;
-} Bubble;
 
 /////////////////GLOBAL VARIABLES/////////////////
 Bubble game_board[12][16];
@@ -143,9 +146,10 @@ int main(void)
 			for(int j = 0; j < 16; j++){
 				for(int i = 0; i < 11; i++){
 
-					if(game_board[LAUNCH_ROW][LAUNCH_COL].xc == game_board[i][j].xc 
-					&& game_board[i][j].yc >= (game_board[LAUNCH_ROW][LAUNCH_COL].yc - 25)
-					&& game_board[i][j].yc <= (game_board[LAUNCH_ROW][LAUNCH_COL].yc + 25)
+					if(game_board[i][j].xc >= (game_board[LAUNCH_ROW][LAUNCH_COL].xc - 22)
+					&& game_board[i][j].xc <= (game_board[LAUNCH_ROW][LAUNCH_COL].xc + 22)
+					&& game_board[i][j].yc >= (game_board[LAUNCH_ROW][LAUNCH_COL].yc - 22)
+					&& game_board[i][j].yc <= (game_board[LAUNCH_ROW][LAUNCH_COL].yc + 22)
 					&& game_board[i][j].colour != 0x0)
 						keep_going = false;
 
@@ -153,6 +157,7 @@ int main(void)
 			}
 
 			wait_loop();
+//			erase_launch(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc);
 			erase_bubble(LAUNCH_ROW, LAUNCH_COL);
 
 			if(bounce){
@@ -181,7 +186,12 @@ int main(void)
 			
 		}
 		
-		update_game_board();
+		erase_launch(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc);
+		Pair fill_me = find_position_to_fill(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc);
+		
+
+		
+		update_game_board(fill_me.row, fill_me.col);
 		game_over = check_game_over();
 		if(entered_recursive < 2)
 			shift_game_board();
@@ -379,6 +389,12 @@ void erase_bubble(int row, int col){
 	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, game_board[row][col].radius, 0x0, false);
 }
 
+void erase_launch(int xc, int yc){
+	initialize_arrow();
+	draw_bubble(xc, yc, 10, 0x0, false);
+}
+
+
 void pop_bubble(int row, int col){
 	game_board[row][col].visible = false;
 	game_board[row][col].colour = 0x0;
@@ -417,10 +433,17 @@ void check_pop(int row, int col){
 
 /////////////////////////////////UPDATE GAME BOARD FUNCTIONS//////////////////////////////////
 
-void update_game_board(){
-	for(int i = 0; i < 11; i++){
+void update_game_board(int row, int col){
+	
+	game_board[row][col].colour = game_board[LAUNCH_ROW][LAUNCH_COL].colour;
+	erase_bubble(LAUNCH_ROW, LAUNCH_COL);
+	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, 10, game_board[row][col].colour, false);
+	check_pop(row, col);
+	
+	/*for(int i = 0; i < 11; i++){
 		for(int j = 0; j < 16; j++){	
-			if(game_board[LAUNCH_ROW][LAUNCH_COL].xc == game_board[i][j].xc 
+			if(game_board[LAUNCH_ROW][LAUNCH_COL].xc >= game_board[i][j].xc -2 
+				&& game_board[LAUNCH_ROW][LAUNCH_COL].xc <= game_board[i][j].xc + 2
 				&& game_board[LAUNCH_ROW][LAUNCH_COL].yc >= game_board[i][j].yc - 2
 				&& game_board[LAUNCH_ROW][LAUNCH_COL].yc <= game_board[i][j].yc + 2){
 					game_board[i][j].colour = game_board[LAUNCH_ROW][LAUNCH_COL].colour;
@@ -429,7 +452,7 @@ void update_game_board(){
 					check_pop(i, j);
 			}
 		}
-	}
+	}*/
 }
 
 void shift_game_board(){
@@ -464,6 +487,32 @@ bool check_game_over(){
 			return true;
 			
 	return false;
+}
+
+Pair find_position_to_fill(int xc, int yc){
+	
+	Pair result;
+	
+	for(int i = 0; i < 11; i++)
+		for(int j = 0; j < 16; j++){
+			
+			if(game_board[i][j].xc >= xc - 8 
+			&& game_board[i][j].xc <= xc + 8
+			&& game_board[i][j].yc >= yc - 8
+			&& game_board[i][j].yc <= yc + 8){
+//				while(game_board[game_board[i][j].up.row][game_board[i][j].up.col].colour == 0x0 && i > -1)
+//					i--;
+				result.row = i;
+				result.col = j;
+				return result;
+			}
+			
+		}
+		
+	result.row = LAUNCH_ROW;
+	result.col = LAUNCH_COL;
+	return result;
+	
 }
 
 /////////////////////////////END OF UPDATE GAME BOARD FUNCTIONS//////////////////////////////
@@ -657,9 +706,9 @@ void clear_arrow(){
 	}
 }
 
-//////////////////////////////////END OF ARROW FUNCTIONS///////////////////////////////
+////////////////////////////////END OF ARROW FUNCTIONS/////////////////////////////////
 
-//////////////////////////////USER INPUT FUNCTIONS////////////////////////////////////
+/////////////////////////////////USER INPUT FUNCTIONS/////////////////////////////////
 
 
 void user_input(){
@@ -717,4 +766,5 @@ void user_input(){
 
 
 ///////////////////////////////END OF USER INPUT FUNCTIONS////////////////////////////
+
 
