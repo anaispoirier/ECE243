@@ -661,7 +661,6 @@ void clear_arrow(){
 
 //////////////////////////////USER INPUT FUNCTIONS////////////////////////////////////
 
-
 void user_input(){
 
 	int timer = 1000000/2;
@@ -714,7 +713,6 @@ void user_input(){
 
 	
 }
-
 
 ///////////////////////////////END OF USER INPUT FUNCTIONS////////////////////////////
 
