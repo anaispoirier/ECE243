@@ -149,7 +149,7 @@ int main(void)
 
 			wait_loop();
 			erase_launch(launch.xPos, launch.yPos);
-			launch.yPos = launch.yPos - 4;
+			launch.yPos = launch.yPos - 5;
 			draw_bubble(launch.xPos, launch.yPos, 10, launch.colour);
 			
 			keep_going = check_keep_going();
@@ -412,8 +412,8 @@ bool check_keep_going(){
 	}
 
 	for(int i = 0; i < 11; i++){
-		if(game_board[i][j].yc > launch.yPos - 23
-		&& game_board[i][j].yc < launch.yPos + 23
+		if(game_board[i][j].yc > launch.yPos - 21
+		&& game_board[i][j].yc < launch.yPos + 21
 		&& game_board[i][j].colour != 0x0){
 			hit_top = false;
 			return false;
@@ -603,7 +603,7 @@ void move_launch(){
 	while(key0 == 0){
 		wait_loop();
 		erase_launch(launch.xPos, launch.yPos);
-		if(launch.xPos <= 0 || launch.xPos >= 318)
+		if(launch.xPos < 10 || launch.xPos > 310)
 			direction = -1 * direction;
 		launch.xPos = launch.xPos + direction;
 		draw_bubble(launch.xPos, launch.yPos, 10, launch.colour);
@@ -614,6 +614,3 @@ void move_launch(){
 }
 
 ///////////////////////////////END OF USER INPUT FUNCTIONS////////////////////////////
-
-
-
