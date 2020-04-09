@@ -24,8 +24,21 @@ typedef struct Bubble {
    Pair left;
 } Bubble;
 
-#define PI 3.14159
-#define RADIANS_TO_DEGREES 57.2957795
+#define PI 3.14159265359
+#define RADIANS_TO_DEGREES 57.2957795131
+#define DEGREE_TO_RADIANS 0.01745329251
+typedef struct LaunchBubble{
+	
+	int xPos;
+	int yPos;
+	int colour;
+	int upRow;
+	int rightCol;
+	int leftCol;
+	bool travelingRight;
+	
+} LaunchBubble;
+
 
 ////////////INITIALIZER FUNCTIONS////////////
 void initialize_game_board();
@@ -36,11 +49,10 @@ double get_angle();
 /////////////////////////////////////////////
 
 ////////DRAWING AND ERASING FUNCTIONS////////
-void draw_bubble(int xc, int yc, int r, int colour, bool pop);
+void draw_bubble(int xc, int yc, int r, int colour);
 void draw_bubble_boundary(int xc, int yc, int x, int y, int colour);
 void erase_bubble(int row, int col);
 void erase_launch(int xc, int yc);
-void pop_bubble(int row, int col);
 void check_pop(int row, int col);
 /////////////////////////////////////////////
 
@@ -48,7 +60,7 @@ void check_pop(int row, int col);
 void update_game_board(int row, int col);
 void shift_game_board();
 bool check_game_over();
-Pair find_position_to_fill(int xc, int yc);
+void set_closest_row_and_col();
 /////////////////////////////////////////////
 
 ///////////COUNT DOWN FUNCTIONS ////////////
@@ -77,17 +89,19 @@ void clear_screen();
 
 /////////////////GLOBAL VARIABLES/////////////////
 Bubble game_board[12][16];
+LaunchBubble launch;
 bool visited[11][16];
 int bubble_colour[3] = {0xC8A4FF, 0xF81F, 0xFF876D};
 int entered_recursive;
 bool keep_going = false;
 int posx, posy;
 int size = 15;
-Pair angle_array[15];
-int count = 7;
-int lastCount = 7;
+Pair angle_array[7];
+int count = 0;
+int lastCount;
 bool toRight = true;
 bool toLeft = false;
+bool travelingRight[15];
 //get the key 0 bit
 int key0;
 
@@ -112,14 +126,12 @@ int main(void)
 	initialize_angle_array();
 	
 	bool game_over = false;
-
+	int drawLaunchRow, drawLaunchCol;
 
 	//counting down on HEX
 	//bool dropDown = count_down();
 
 	while(!game_over){
-
-		
 
 		//reset to wait for user input
 		keep_going = false;
@@ -129,14 +141,14 @@ int main(void)
 		
 		reset_visited();
 		
-		initialize_arrow();
-		draw_bubble(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc, game_board[LAUNCH_ROW][LAUNCH_COL].radius, game_board[LAUNCH_ROW][LAUNCH_COL].colour, false);
+		// initialize_arrow();
+		// draw_bubble(launch.xPos, launch.yPos, 10, launch.colour);
 
-		key0 = *(key_ptr) && 0x1;
+		// key0 = *(key_ptr) && 0x1;
 		
-		while(key0 != 0){
-			key0 = *(key_ptr) && 0x1;
-		}
+		// while(key0 != 0){
+		// 	key0 = *(key_ptr) && 0x1;
+		// }
 		
 		// user input should produce a signal of whether to keep going or not
 		user_input();
@@ -147,26 +159,13 @@ int main(void)
 		
 		while(keep_going){
 
-			for(int j = 0; j < 16; j++){
-				for(int i = 0; i < 11; i++){
-
-					if(game_board[i][j].xc >= (game_board[LAUNCH_ROW][LAUNCH_COL].xc - 22)
-					&& game_board[i][j].xc <= (game_board[LAUNCH_ROW][LAUNCH_COL].xc + 22)
-					&& game_board[i][j].yc >= (game_board[LAUNCH_ROW][LAUNCH_COL].yc - 22)
-					&& game_board[i][j].yc <= (game_board[LAUNCH_ROW][LAUNCH_COL].yc + 22)
-					&& game_board[i][j].colour != 0x0)
-						keep_going = false;
-
-				}
-			}
-
 			wait_loop();
-//			erase_launch(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc);
-			erase_bubble(LAUNCH_ROW, LAUNCH_COL);
+			erase_launch(launch.xPos, launch.yPos);
 
 			if(bounce){
-				game_board[LAUNCH_ROW][LAUNCH_COL].yc -= angle_array[count].row;
-				game_board[LAUNCH_ROW][LAUNCH_COL].xc += angle_array[count].col;
+				launch.yPos -= angle_array[count].row;
+				launch.xPos += angle_array[count].col;
+				launch.travelingRight = travelingRight[count];
 				posy -= angle_array[count].row;
 				posx += angle_array[count].col;
 				//check if next position would go out of bound
@@ -175,8 +174,9 @@ int main(void)
 				}
 
 			}else{
-				game_board[LAUNCH_ROW][LAUNCH_COL].yc -= angle_array[count].row;
-				game_board[LAUNCH_ROW][LAUNCH_COL].xc -= angle_array[count].col;
+				launch.yPos -= angle_array[count].row;
+				launch.xPos -= angle_array[count].col;
+				launch.travelingRight = travelingRight[count];
 				posy -= angle_array[count].row;
 				posx -= angle_array[count].col;
 				//check if next position would go out of bound
@@ -184,22 +184,32 @@ int main(void)
 					bounce = true;
 				}
 			}
+			
+			set_closest_row_and_col();
+			
+			if(game_board[launch.upRow][launch.rightCol].colour != 0x0
+			&& launch.travelingRight){
+				drawLaunchRow = launch.upRow + 1;
+				drawLaunchCol = launch.rightCol - 1;
+				keep_going = false;
+			}
+			else if(game_board[launch.upRow][launch.leftCol].colour != 0x0
+			&& !launch.travelingRight){
+				drawLaunchRow = launch.upRow + 1;
+				drawLaunchCol = launch.leftCol + 1;
+				keep_going = false;
+			}
 
-			initialize_arrow();
-			draw_bubble(posx, posy, 10, game_board[LAUNCH_ROW][LAUNCH_COL].colour, false);	
+			draw_bubble(launch.xPos, launch.yPos, 10, launch.colour);	
+			draw_arrow();
 			
 		}
-		
-		erase_launch(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc);
-		Pair fill_me = find_position_to_fill(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc);
-		
 
-		
-		update_game_board(fill_me.row, fill_me.col);
+		erase_launch(launch.xPos, launch.yPos);
+		update_game_board(drawLaunchRow, drawLaunchCol);
 		game_over = check_game_over();
 		if(entered_recursive < 2)
 			shift_game_board();
-		//reset_launch_bubble();
 		
 	}
 	
@@ -265,7 +275,7 @@ void initialize_game_board(){
 				game_board[i][j].visible = false;
 			}
 			
-			draw_bubble(game_board[i][j].xc, game_board[i][j].yc, game_board[i][j].radius, game_board[i][j].colour, false);
+			 draw_bubble(game_board[i][j].xc, game_board[i][j].yc, game_board[i][j].radius, game_board[i][j].colour);
 			
 			if(j == 15){
 				xCount += 16;
@@ -276,16 +286,16 @@ void initialize_game_board(){
 		
 	}
 	
-	initialize_arrow();
+	// initialize_arrow();
 }
 
 void reset_launch_bubble(){
 	
-	game_board[LAUNCH_ROW][LAUNCH_COL].xc = 169;
-	game_board[LAUNCH_ROW][LAUNCH_COL].yc = 230;
-	game_board[LAUNCH_ROW][LAUNCH_COL].radius = 10;
-	game_board[LAUNCH_ROW][LAUNCH_COL].colour = bubble_colour[rand() % 3];
-	game_board[LAUNCH_ROW][LAUNCH_COL].visible = true;
+	launch.xPos = 169;
+	launch.yPos = 230;
+	launch.colour = bubble_colour[rand() % 3];
+	launch.upRow = 11;
+	launch.rightCol = 8;
 }
 
 void reset_visited(){
@@ -300,78 +310,47 @@ void reset_visited(){
 void initialize_angle_array(){
 	
 	//the middle 
-	angle_array[7].row = 3;
-	angle_array[7].col = 0;
+	angle_array[3].row = 5;
+	angle_array[3].col = 0;
+	//going straight
 
-	//the left most 
+	// the right half ??
 	angle_array[0].row = 5;
-	angle_array[0].col = 1;
+	angle_array[0].col = -4;
 
 	angle_array[1].row = 5;
-	angle_array[1].col = 2;
+	angle_array[1].col = -2;
 
-	angle_array[2].row = 3;
-	angle_array[2].col = 2;
+	angle_array[2].row = 5;
+	angle_array[2].col = -1;
 
-	angle_array[3].row = 3;
-	angle_array[3].col = 3;
+	angle_array[4].row = 5;
+	angle_array[4].col = 1;
 
-	angle_array[4].row = 2;
-	angle_array[4].col = 3;
+	angle_array[5].row = 5;
+	angle_array[5].col = 2;
 
-	angle_array[5].row = 2;
-	angle_array[5].col = 5;
+	angle_array[6].row = 5;
+	angle_array[6].col = 4;
 
-	angle_array[6].row = 1;
-	angle_array[6].col = 5;
-
-	// other half
-	angle_array[8].row = 5;
-	angle_array[8].col = -1;
-
-	angle_array[9].row = 5;
-	angle_array[9].col = -2;
-
-	angle_array[10].row = 3;
-	angle_array[10].col = -2;
-
-	angle_array[11].row = 3;
-	angle_array[11].col = -3;
-
-	angle_array[12].row = 2;
-	angle_array[12].col = -3;
-
-	angle_array[13].row = 2;
-	angle_array[13].col = -5;
-
-	angle_array[14].row = 1;
-	angle_array[14].col = -5;
+	
+	for(int i = 0; i < 7; i++)
+		if(angle_array[i].col < 3)
+			travelingRight[i] = true;
 
 }
 
-double get_angle(){
-	double x = angle_array[count].col;
-	double y = angle_array[count].row;
-
-	//returns in radians
-	double theta = (double)atan(x/y);
-	theta = theta * RADIANS_TO_DEGREES;
-	double beta = (180 - theta)/2;
-	double alpha = 90 - beta;
-	return alpha;
-}
 
 /////////////////////////////////END OF INITIALIZER FUNCTIONS/////////////////////////////////
 
 
 ////////////////////////////////DRAW AND POP BUBBLE FUNCTIONS/////////////////////////////////
 
-void draw_bubble(int xc, int yc, int r, int colour, bool pop){
+void draw_bubble(int xc, int yc, int r, int colour){
  
     int x = 0, y = r; 
     int d = 3 - 2 * r; 
-	if(pop)
-		colour = 0x0;
+
     draw_bubble_boundary(xc, yc, x, y, colour); 
     while (y >= x) { 
         x++; 
@@ -383,9 +362,6 @@ void draw_bubble(int xc, int yc, int r, int colour, bool pop){
         else
             d = d + 4 * x + 6; 
         draw_bubble_boundary(xc, yc, x, y, colour);
-		
-		if(pop)
-			wait_loop();
 
     }
 }
@@ -399,24 +375,20 @@ void draw_bubble_boundary(int xc, int yc, int x, int y, int colour){
 
 void erase_bubble(int row, int col){
 	game_board[row][col].visible = false;
-	if(row != LAUNCH_ROW && col != LAUNCH_COL)
-		game_board[row][col].colour = 0x0;
+	game_board[row][col].colour = 0x0;
 	initialize_arrow();
-	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, game_board[row][col].radius, 0x0, false);
+	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, game_board[row][col].radius, 0x0);
 }
 
 void erase_launch(int xc, int yc){
 	initialize_arrow();
-	draw_bubble(xc, yc, 10, 0x0, false);
-}
-
-void pop_bubble(int row, int col){
-	game_board[row][col].visible = false;
-	game_board[row][col].colour = 0x0;
-	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, game_board[row][col].radius, 0x0, true);
+	draw_bubble(xc, yc, 10, 0x0);
 }
 
 void check_pop(int row, int col){
+	
+//	if(row < 0 || col < 0)
+//		return;
 	
 	entered_recursive++;
 	
@@ -450,24 +422,11 @@ void check_pop(int row, int col){
 
 void update_game_board(int row, int col){
 	
-	game_board[row][col].colour = game_board[LAUNCH_ROW][LAUNCH_COL].colour;
-	erase_bubble(LAUNCH_ROW, LAUNCH_COL);
-	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, 10, game_board[row][col].colour, false);
+	game_board[row][col].colour = launch.colour;
+	game_board[row][col].visible = true;
+	erase_launch(launch.xPos, launch.yPos);
+	draw_bubble(game_board[row][col].xc, game_board[row][col].yc, 10, game_board[row][col].colour);
 	check_pop(row, col);
-	
-	/*for(int i = 0; i < 11; i++){
-		for(int j = 0; j < 16; j++){	
-			if(game_board[LAUNCH_ROW][LAUNCH_COL].xc >= game_board[i][j].xc -2 
-				&& game_board[LAUNCH_ROW][LAUNCH_COL].xc <= game_board[i][j].xc + 2
-				&& game_board[LAUNCH_ROW][LAUNCH_COL].yc >= game_board[i][j].yc - 2
-				&& game_board[LAUNCH_ROW][LAUNCH_COL].yc <= game_board[i][j].yc + 2){
-					game_board[i][j].colour = game_board[LAUNCH_ROW][LAUNCH_COL].colour;
-					erase_bubble(LAUNCH_ROW, LAUNCH_COL);
-					draw_bubble(game_board[i][j].xc, game_board[i][j].yc, 10, game_board[i][j].colour, false);
-					check_pop(i, j);
-			}
-		}
-	}*/
 }
 
 void shift_game_board(){
@@ -490,7 +449,7 @@ void shift_game_board(){
 	
 	for(int i = 0; i < 11; i++)
 		for(int j = 0; j < 16; j++)
-			draw_bubble(game_board[i][j].xc, game_board[i][j].yc, 10, game_board[i][j].colour, false);
+			draw_bubble(game_board[i][j].xc, game_board[i][j].yc, 10, game_board[i][j].colour);
 	
 	
 }
@@ -504,29 +463,37 @@ bool check_game_over(){
 	return false;
 }
 
-Pair find_position_to_fill(int xc, int yc){
+void set_closest_row_and_col(){
 	
-	Pair result;
+	//setting row
+	printf("launch y is %d\n", launch.yPos);
 	
-	for(int i = 0; i < 11; i++)
-		for(int j = 0; j < 16; j++){
-			
-			if(game_board[i][j].xc >= xc - 8 
-			&& game_board[i][j].xc <= xc + 8
-			&& game_board[i][j].yc >= yc - 8
-			&& game_board[i][j].yc <= yc + 8){
-//				while(game_board[game_board[i][j].up.row][game_board[i][j].up.col].colour == 0x0 && i > -1)
-//					i--;
-				result.row = i;
-				result.col = j;
-				return result;
-			}
-			
-		}
+	//deal with row 0
+	for(int i = 0; i < 11; i++){
 		
-	result.row = LAUNCH_ROW;
-	result.col = LAUNCH_COL;
-	return result;
+		if(launch.yPos - 10 <= (i + 1) * 20 
+		&& launch.yPos - 10 > i * 20) 
+			launch.upRow = i;
+	}
+	printf("closest row is %d\n", launch.upRow);
+	
+	//setting cols
+	printf("launch x is %d\n", launch.xPos);
+	for(int j = 0; j < 16; j++){
+		if(launch.xPos + 10 >= 300)
+			launch.rightCol = 15;
+		else if(launch.xPos + 10 >= j * 20
+		&& launch.xPos + 10 < (j + 1) * 20)
+			launch.rightCol = j;
+		if(launch.xPos - 10 <= 20)
+			launch.leftCol = 0;
+		else if(launch.xPos - 10 > j * 20
+		&& launch.xPos - 10 <= (j + 1) * 20)
+			launch.leftCol = j;
+	}
+	printf("closest right col is %d\n", launch.rightCol);
+	printf("closest left col is %d\n", launch.leftCol);
+	
 	
 }
 
@@ -589,9 +556,7 @@ void plot_pixel(int x, int y, short int line_color){
 
 void clear_screen(){
 	
-	for(int i = 0; i < 320; i++)
-		for(int j = 0; j < 240; j++ )
-			plot_pixel(i, j, 0x0);
+	memset((short int*) pixel_buffer_start, 0, 245760 );
 }
 
 //////////////////////////////////END OF HELPER FUNCTIONS/////////////////////////////////
@@ -650,72 +615,112 @@ void initialize_arrow(){
 				plot_pixel(x, y, 0xE7AE);
 			}
 
-		}else if(y >= 205 & y < 210){
+		}else if( (y >= 205) && (y < 240)){
 
-			for(int x = 167 ; x < 170 ; x++){
+			for(int x = 167; x < 170; x++){
 				plot_pixel(x, y, 0xE7AE);
 			}
-
-		}else if(y >= 210 & y < 240){
-
-			for(int x = 166; x < 171; x++){
-				plot_pixel(x, y, 0xE7AE);
-			}
-
 		}
-
 	}
-
 }
 
 void draw_arrow(){
 
-	for(int y = 200; y < 240; y++){
+	//keep in mind that > 7 is left 
+	if(count == 7) initialize_arrow();
 
-		if(y >= 200 & y < 205){
-				int x = 168;
-				plot_pixel(x , y, 0xE7AE);
-
-		}else if(y >= 205 & y < 210){
-
-			for(int x = 167 ; x < 170 ; x++){
-				plot_pixel(x, y, 0xE7AE);
-			}
-
-		}else if(y >= 210 & y < 240){
-
-			for(int x = 166; x < 171; x++){
-				plot_pixel(x, y, 0xE7AE);
-			}
-
-		}
-
+	if(count == 6){
+		draw_line( 135 , 199 , 167, 239, 0xE7AE);
+		draw_line( 136 , 199 , 168, 239, 0xE7AE);
+		draw_line( 137 , 199 , 169, 239, 0xE7AE);
 	}
+
+	if(count == 5){
+		draw_line( 151 , 199 , 167, 239, 0xE7AE);
+		draw_line( 152 , 199 , 168, 239, 0xE7AE);
+		draw_line( 153 , 199 , 169, 239, 0xE7AE);
+	}
+	
+	if(count == 4){
+		draw_line( 159 , 199 , 167, 239, 0xE7AE);
+		draw_line( 160 , 199 , 168, 239, 0xE7AE);
+		draw_line( 161 , 199 , 169, 239, 0xE7AE);
+	}	
+
+	if(count == 2){
+		draw_line( 175 , 199 , 167, 239, 0xE7AE);
+		draw_line( 176 , 199 , 168, 239, 0xE7AE);
+		draw_line( 177 , 199 , 169, 239, 0xE7AE);
+	}
+
+	if(count == 1){
+		draw_line( 183 , 199 , 167, 239, 0xE7AE);
+		draw_line( 184 , 199 , 168, 239, 0xE7AE);
+		draw_line( 185 , 199 , 169, 239, 0xE7AE);
+	}
+
+	if(count == 0){
+		draw_line( 199 , 199 , 167, 239, 0xE7AE);
+		draw_line( 200 , 199 , 168, 239, 0xE7AE);
+		draw_line( 201 , 199 , 169, 239, 0xE7AE);
+	}
+
 }
 
 void clear_arrow(){
-	for(int y = 200; y < 240; y++){
+		//keep in mind that > 7 is left 
+	if(lastCount == 7){
+			for(int y = 200; y < 240; y++){
 
-		if(y >= 200 & y < 205){
+			if(y >= 200 & y < 205){
 
-			for(int x = 168; x < 169; x++){
-				plot_pixel(x, y, 0x0);
+				for(int x = 168; x < 169; x++){
+					plot_pixel(x, y, 0x0);
+				}
+
+			}else if( (y >= 205) && (y < 240)){
+
+				for(int x = 167; x < 170; x++){
+					plot_pixel(x, y, 0x0);
+				}
 			}
-
-		}else if(y >= 205 & y < 210){
-
-			for(int x = 167 ; x < 170 ; x++){
-				plot_pixel(x, y, 0x0);
-			}
-
-		}else if(y >= 210 & y < 240){
-
-			for(int x = 166; x < 171; x++){
-				plot_pixel(x, y, 0x0);
-			}
-
 		}
+	}
 
+	if(lastCount == 6){
+		draw_line( 135 , 199 , 167, 239, 0x0);
+		draw_line( 136 , 199 , 168, 239, 0x0);
+		draw_line( 137 , 199 , 169, 239, 0x0);
+	}
+
+	if(lastCount == 5){
+		draw_line( 151 , 199 , 167, 239, 0x0);
+		draw_line( 152 , 199 , 168, 239, 0x0);
+		draw_line( 153 , 199 , 169, 239, 0x0);
+	}
+	
+	if(lastCount == 4){
+		draw_line( 159 , 199 , 167, 239, 0x0);
+		draw_line( 160 , 199 , 168, 239, 0x0);
+		draw_line( 161 , 199 , 169, 239, 0x0);
+	}	
+
+	if(lastCount == 2){
+		draw_line( 175 , 199 , 167, 239, 0x0);
+		draw_line( 176 , 199 , 168, 239, 0x0);
+		draw_line( 177 , 199 , 169, 239, 0x0);
+	}
+
+	if(lastCount == 1){
+		draw_line( 183 , 199 , 167, 239, 0x0);
+		draw_line( 184 , 199 , 168, 239, 0x0);
+		draw_line( 185 , 199 , 169, 239, 0x0);
+	}
+
+	if(lastCount == 0){
+		draw_line( 199 , 199 , 167, 239, 0x0);
+		draw_line( 200 , 199 , 168, 239, 0x0);
+		draw_line( 201 , 199 , 169, 239, 0x0);
 	}
 }
 
@@ -725,43 +730,57 @@ void clear_arrow(){
 
 void user_input(){
 
-	int timer = 1000000/2;
+	int timer = 1000000/25;
 	
 	//go through the loop to make key is pressed
-	while(key0 == 0){
+	key0 = *(key_ptr) && 0x1;
 
-		timer = 1000000/2;
-		while(timer > 0){
-			timer--;
-		}
-
-		if( toRight && key0 == 0 ){
+	do{
+		
+		if( toRight & key0 == 0 ){
 			lastCount = count;
-			count++;
+			count = count + 1;
 
+			timer = 1000000/4;
+			while(timer > 0){
+				timer--;
+			}
+			//switch counting up or down
 			if(count == size-1){
 				toRight = false;
 				toLeft = true;
 			}
 
-		}else if( toLeft && key0 == 0){
+		}else if( toLeft & key0 == 0){
+			//switch counting up or down
 			lastCount = count;
-			count--;
+			count = count - 1;
 
+			timer = 1000000/4;
+			while(timer > 0){
+				timer--;
+			}
 			if(count == 0){
 				toRight = true;
 				toLeft = false;
 			}
 		}
-
+		
 		clear_arrow();
+		wait_loop();
 		draw_arrow();
-		draw_bubble(game_board[LAUNCH_ROW][LAUNCH_COL].xc, game_board[LAUNCH_ROW][LAUNCH_COL].yc, game_board[LAUNCH_ROW][LAUNCH_COL].radius, game_board[LAUNCH_ROW][LAUNCH_COL].colour, false);
-		keep_going = true;
-		key0 = *(key_ptr) && 0x1;
-	
-	}
+		draw_bubble(launch.xPos, launch.yPos,10, launch.colour);
+		
+		keep_going = false;
 
+		key0 = *(key_ptr) & 0x1;
+	}while(key0 == 0);
+
+	keep_going = true;
+	clear_arrow();
+	draw_arrow();
+	draw_bubble(launch.xPos, launch.yPos,10, launch.colour);
+	// draw_arrow();
 	//go through the loop to make sure the key is unpressed
 	// while(key0 == 1){
 		
@@ -777,5 +796,6 @@ void user_input(){
 }
 
 ///////////////////////////////END OF USER INPUT FUNCTIONS////////////////////////////
+
 
 
