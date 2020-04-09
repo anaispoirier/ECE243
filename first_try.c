@@ -5,6 +5,8 @@
 
 #define LAUNCH_ROW 11
 #define LAUNCH_COL 12
+//maximum number of bubbles in board
+#define MAX_SIZE 176
 
 typedef struct Pair {
 	int row;
@@ -56,6 +58,7 @@ void update_game_board(int row, int col);
 void shift_game_board();
 bool check_game_over();
 void set_closest_row_and_col();
+void check_move_up(int row, int col);
 /////////////////////////////////////////////
 
 ///////////COUNT DOWN FUNCTIONS ////////////
@@ -121,7 +124,8 @@ int main(void)
 	initialize_angle_array();
 	
 	bool game_over = false;
-	int drawLaunchRow, drawLaunchCol;
+	int drawLaunchRow;
+	int drawLaunchCol;
 
 	//counting down on HEX
 	//bool dropDown = count_down();
@@ -202,6 +206,9 @@ int main(void)
 
 		erase_launch(launch.xPos, launch.yPos);
 		update_game_board(drawLaunchRow, drawLaunchCol);
+		check_move_up(drawLaunchRow, drawLaunchCol);
+		
+
 		game_over = check_game_over();
 		if(entered_recursive < 2)
 			shift_game_board();
@@ -210,6 +217,19 @@ int main(void)
 	
 	return 0;
 }
+
+void check_move_up(int row, int col){
+	
+	//if up is not - 1	
+	if(game_board[game_board[row][col].up.row][game_board[row][col].up.col].colour == 0x0
+	&& game_board[game_board[row][col].right.row][game_board[row][col].right.col].colour == 0x0
+	&& game_board[game_board[row][col].left.row][game_board[row][col].left.col].colour == 0x0){
+		check_move_up(row-1, col);
+		erase_bubble(row, col);
+		update_game_board(row-1, col);
+	}
+}
+
 
 /////////////////////////////////////INITIALIZER FUNCTIONS/////////////////////////////////////
 
@@ -404,27 +424,28 @@ void erase_launch(int xc, int yc){
 
 void check_pop(int row, int col){
 	
-//	if(row < 0 || col < 0)
-//		return;
-	
 	entered_recursive++;
 	
 	visited[row][col] = true;
 	bool entered_at_least_once = false;
 	
-	if(game_board[row][col].colour == game_board[game_board[row][col].up.row][game_board[row][col].up.col].colour){
-		entered_at_least_once = true;
-		check_pop(game_board[row][col].up.row, game_board[row][col].up.col);
-	}
-	if(game_board[row][col].colour == game_board[game_board[row][col].right.row][game_board[row][col].right.col].colour){
-		entered_at_least_once = true;
-		check_pop(game_board[row][col].right.row, game_board[row][col].right.col);
-	}
-	if(game_board[row][col].colour == game_board[game_board[row][col].left.row][game_board[row][col].left.col].colour
-	&& visited[game_board[row][col].left.row][game_board[row][col].left.col] == false){
-		entered_at_least_once = true;
-		check_pop(game_board[row][col].left.row, game_board[row][col].left.col);
-	}
+	if(game_board[row][col].up.row != -1 && game_board[row][col].up.col != -1)
+		if(game_board[row][col].colour == game_board[game_board[row][col].up.row][game_board[row][col].up.col].colour){
+			entered_at_least_once = true;
+			check_pop(game_board[row][col].up.row, game_board[row][col].up.col);
+		}
+		
+	if(game_board[row][col].right.row != -1 && game_board[row][col].right.col != -1)
+		if(game_board[row][col].colour == game_board[game_board[row][col].right.row][game_board[row][col].right.col].colour){
+			entered_at_least_once = true;
+			check_pop(game_board[row][col].right.row, game_board[row][col].right.col);
+		}
+	if(game_board[row][col].left.row != -1 && game_board[row][col].left.col != -1)
+		if(game_board[row][col].colour == game_board[game_board[row][col].left.row][game_board[row][col].left.col].colour
+		&& visited[game_board[row][col].left.row][game_board[row][col].left.col] == false){
+			entered_at_least_once = true;
+			check_pop(game_board[row][col].left.row, game_board[row][col].left.col);
+		}
 
 	if(entered_recursive > 2)	
 		erase_bubble(row, col);
@@ -438,7 +459,7 @@ void check_pop(int row, int col){
 /////////////////////////////////UPDATE GAME BOARD FUNCTIONS//////////////////////////////////
 
 void update_game_board(int row, int col){
-	
+	printf("updating game board for row %d and col % d\n", row, col);
 	game_board[row][col].colour = launch.colour;
 	game_board[row][col].visible = true;
 	erase_launch(launch.xPos, launch.yPos);
