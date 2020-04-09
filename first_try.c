@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <math.h>
 
 #define LAUNCH_ROW 11
 #define LAUNCH_COL 12
@@ -23,12 +24,15 @@ typedef struct Bubble {
    Pair left;
 } Bubble;
 
+#define PI 3.14159
+#define RADIANS_TO_DEGREES 57.2957795
 
 ////////////INITIALIZER FUNCTIONS////////////
 void initialize_game_board();
 void reset_launch_bubble();
 void reset_visited();
 void initialize_angle_array();
+double get_angle();
 /////////////////////////////////////////////
 
 ////////DRAWING AND ERASING FUNCTIONS////////
@@ -345,6 +349,18 @@ void initialize_angle_array(){
 
 }
 
+double get_angle(){
+	double x = angle_array[count].col;
+	double y = angle_array[count].row;
+
+	//returns in radians
+	double theta = (double)atan(x/y);
+	theta = theta * RADIANS_TO_DEGREES;
+	double beta = (180 - theta)/2;
+	double alpha = 90 - beta;
+	return alpha;
+}
+
 /////////////////////////////////END OF INITIALIZER FUNCTIONS/////////////////////////////////
 
 
@@ -393,7 +409,6 @@ void erase_launch(int xc, int yc){
 	initialize_arrow();
 	draw_bubble(xc, yc, 10, 0x0, false);
 }
-
 
 void pop_bubble(int row, int col){
 	game_board[row][col].visible = false;
@@ -658,10 +673,8 @@ void draw_arrow(){
 	for(int y = 200; y < 240; y++){
 
 		if(y >= 200 & y < 205){
-
-			for(int x = 168; x < 169; x++){
-				plot_pixel(x, y, 0xE7AE);
-			}
+				x = 168;
+				plot_pixel(x , y, 0xE7AE);
 
 		}else if(y >= 205 & y < 210){
 
