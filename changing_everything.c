@@ -149,7 +149,7 @@ int main(void)
 
 			wait_loop();
 			erase_launch(launch.xPos, launch.yPos);
-			launch.yPos = launch.yPos - 3;
+			launch.yPos = launch.yPos - 4;
 			draw_bubble(launch.xPos, launch.yPos, 10, launch.colour);
 			
 			keep_going = check_keep_going();
@@ -599,7 +599,7 @@ void display_hex(int i){
 /////////////////////////////////USER INPUT FUNCTIONS/////////////////////////////////
 	
 void move_launch(){
-	int direction = 3;
+	int direction = 4;
 	while(key0 == 0){
 		wait_loop();
 		erase_launch(launch.xPos, launch.yPos);
