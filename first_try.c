@@ -673,7 +673,7 @@ void draw_arrow(){
 	for(int y = 200; y < 240; y++){
 
 		if(y >= 200 & y < 205){
-				x = 168;
+				int x = 168;
 				plot_pixel(x , y, 0xE7AE);
 
 		}else if(y >= 205 & y < 210){
